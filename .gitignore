@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+.scrub*.py
+.env
+*.key
+llm_proxy.yaml
+immune_memory.json
