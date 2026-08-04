@@ -1,0 +1,68 @@
+# ============================================================
+# 全局 LLM 代理配置（统一入口）——示例文件
+# ============================================================
+# 所有项目、所有智能体的 LLM 调用配置都引用此文件。
+# 改 key/代理/模型选型 => 仅改此处。
+# 用法：复制到 ~/.zcode/llm_proxy.yaml（或设环境变量 LLM_PROXY_CONFIG 指向你的路径）
+# ============================================================
+
+proxy:
+  # 你的 OpenAI 兼容代理端点（示例地址，请替换）
+  url: "http://localhost:8000/v1"
+  # api_key 引用路径（不直接写值到本文件；该文件不要入版本库）
+  key_file: "~/.llm_proxy_keys.json"
+  # 在 key_file JSON 中的取值路径，如 {"api_key": "..."} 则填 "api_key"
+  key_jsonpath: "api_key"
+
+models:
+  # ============================================================
+  # 审查引擎角色模型（三席位建议异架构，制造"故意冲突"）
+  # ============================================================
+  # max_tokens 策略：不设 max_tokens 字段。
+  # 根因：思考型模型的 reasoning_tokens 会先吃 max_tokens 配额——
+  #   设小(如 3000)→reasoning 吃满配额，正文 0 字符空回复；
+  #   不设→模型用自己默认上限，稳定输出。
+  # client.py 会在 max_tokens=None 时不向 payload 传该字段。
+  code_reviewer:            # 逐行找 bug / 边界 / 类型安全
+    model: "kimi-k2.7-code"
+    label: "Kimi K2.7 Code"
+    timeout: 600
+    priority: 1
+  architecture_reviewer:    # 错误传播 / 并发 / API 设计
+    model: "deepseek-v4-pro"
+    label: "DeepSeek V4 Pro"
+    timeout: 600
+    priority: 1
+  arbiter:                  # 分歧仲裁：长上下文全局审视、跨模块一致性
+    model: "qwen3.8-max"
+    label: "Qwen 3.8 Max"
+    timeout: 720
+    priority: 2
+
+  # ============================================================
+  # 执行/文书席位（轻量任务：delta 确认/蒸馏/结构化抽取）
+  # ============================================================
+  knowledge_keeper:
+    model: "deepseek-v4-flash-0731"
+    label: "DeepSeek V4 Flash 0731"
+    timeout: 300
+    priority: 3
+
+  # ============================================================
+  # 日常主用模型（不用于审查——审查走异架构双模型）
+  # ============================================================
+  primary:
+    model: "glm-5.2"
+    label: "GLM-5.2"
+
+# ============================================================
+# 审查引擎默认参数
+# ============================================================
+review_defaults:
+  temperature: 0.1
+  report_dir: "reports"
+  retry: 2
+  max_rounds: 3
+  score_threshold: 8.5
+  # 两审查者分差 > 此值触发仲裁
+  arbitration_threshold: 1.5
